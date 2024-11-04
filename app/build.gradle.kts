@@ -118,6 +118,8 @@ android {
 
 dependencies {
     implementation(project(":common"))
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.firestore.ktx)
 
     coreLibraryDesugaring(libs.tools.desugar.jdk)
 
