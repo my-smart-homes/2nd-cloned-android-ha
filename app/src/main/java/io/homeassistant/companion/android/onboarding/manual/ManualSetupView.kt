@@ -1,6 +1,7 @@
 package io.homeassistant.companion.android.onboarding.manual
 
 import android.content.res.Configuration
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -8,12 +9,17 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
+import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -27,6 +33,8 @@ import com.mikepenz.iconics.typeface.library.community.material.CommunityMateria
 import io.homeassistant.companion.android.common.R as commonR
 import io.homeassistant.companion.android.onboarding.OnboardingHeaderView
 import io.homeassistant.companion.android.onboarding.OnboardingScreen
+import io.homeassistant.companion.android.onboarding.login.HassioUserSession
+import kotlinx.coroutines.launch
 
 @Composable
 fun ManualSetupView(
@@ -36,6 +44,21 @@ fun ManualSetupView(
     connectedClicked: () -> Unit
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
+    val isLoading = rememberSaveable { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        val externalUrl = HassioUserSession.externalUrl ?: ""
+        if (externalUrl.isNotEmpty() && isLoading.value == true) {
+            manualUrl.value = externalUrl
+            connectedClicked()  // Automatically trigger the connect button
+            launch {
+                kotlinx.coroutines.delay(1000)  // Delay for 1 second
+                isLoading.value = false  // Hide overlay after delay
+            }
+
+        }
+    }
+
 
     OnboardingScreen(Modifier.fillMaxHeight().verticalScroll(rememberScrollState())) {
         OnboardingHeaderView(
@@ -74,6 +97,15 @@ fun ManualSetupView(
                 .padding(16.dp)
         ) {
             Text(stringResource(commonR.string.connect))
+        }
+
+        if (isLoading.value) {
+            Surface(
+                color = MaterialTheme.colors.background.copy(alpha = 1f),  // Respect theme's background color
+                modifier = Modifier.fillMaxSize()
+            ) {
+
+            }
         }
     }
 }
