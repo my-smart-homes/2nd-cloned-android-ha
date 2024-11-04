@@ -3,7 +3,7 @@ activity-compose = "1.9.3"
 androidBeaconLibrary = "2.20.6"
 androidPlugin = "8.7.2"
 androidSdk-compile = "35"
-androidSdk-min = "21"
+androidSdk-min = "23"
 androidSdk-target = "34"
 androidSdk-automotive-min = "29"
 androidSdk-wear-min = "26"
@@ -68,6 +68,8 @@ webkit = "1.12.1"
 wear-remote-interactions = "1.0.0"
 workRuntimeKtx = "2.10.0"
 zxing = "4.3.0"
+firebaseAuthKtx = "23.0.0"
+firebaseFirestoreKtx = "25.1.0"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidPlugin" }
@@ -171,6 +173,8 @@ wear-tiles = { module = "androidx.wear.tiles:tiles", version.ref = "wear-tiles" 
 wear-tooling = { module = "androidx.wear:wear-tooling-preview", version.ref = "wear-tooling" }
 webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
 zxing = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxing" }
+firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuthKtx" }
+firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestoreKtx" }
 
 [bundles]
 media3 = ["media3-exoplayer", "media3-exoplayer-hls", "media3-ui"]
