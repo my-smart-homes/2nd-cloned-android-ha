@@ -30,6 +30,7 @@ import io.homeassistant.companion.android.common.data.authentication.impl.Authen
 import io.homeassistant.companion.android.common.data.keychain.KeyChainRepository
 import io.homeassistant.companion.android.onboarding.OnboardingViewModel
 import io.homeassistant.companion.android.onboarding.integration.MobileAppIntegrationFragment
+import io.homeassistant.companion.android.onboarding.login.HassioUserSession
 import io.homeassistant.companion.android.themes.ThemesManager
 import io.homeassistant.companion.android.util.TLSWebViewClient
 import io.homeassistant.companion.android.util.compose.HomeAssistantAppTheme
@@ -38,6 +39,7 @@ import javax.inject.Inject
 import javax.inject.Named
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import org.json.JSONObject
 
 @AndroidEntryPoint
 class AuthenticationFragment : Fragment() {
@@ -72,12 +74,22 @@ class AuthenticationFragment : Fragment() {
                             themesManager.setThemeForWebView(requireContext(), settings)
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
+                            WebView.setWebContentsDebuggingEnabled(true)
                             settings.userAgentString = settings.userAgentString + " ${HomeAssistantApis.USER_AGENT_STRING}"
                             webViewClient = object : TLSWebViewClient(keyChainRepository) {
                                 @Deprecated("Deprecated in Java")
                                 override fun shouldOverrideUrlLoading(view: WebView?, url: String): Boolean {
                                     return onRedirect(url)
                                 }
+
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    Log.d(TAG, "onPageFinished: $url");
+
+                                    // Inject JavaScript to auto-fill username, password and click login button
+                                    injectAutoLoginScript(view)
+                                }
+
 
                                 @RequiresApi(Build.VERSION_CODES.M)
                                 override fun onReceivedError(
@@ -246,4 +258,136 @@ class AuthenticationFragment : Fragment() {
             .show()
         parentFragmentManager.popBackStack()
     }
+
+    private fun injectAutoLoginScript(webView: WebView?) {
+        val username = HassioUserSession.webviewUsername ?: ""
+        val password = HassioUserSession.webviewPassword ?: ""
+
+        val escapedUsername = JSONObject.quote(username)
+        val escapedPassword = JSONObject.quote(password)
+
+        val jsScript = """
+            (function() {
+                let found = false;
+
+                function createLoadingOverlay() {
+                    var overlay = document.createElement('div');
+                    overlay.id = 'loadingOverlay';
+                    overlay.style.position = 'fixed';
+                    overlay.style.top = '0';
+                    overlay.style.left = '0';
+                    overlay.style.width = '100%';
+                    overlay.style.height = '100%';
+                    overlay.style.backgroundColor = 'white';
+                    overlay.style.zIndex = '9999';
+                    overlay.style.display = 'flex';
+                    overlay.style.flexDirection = 'column';
+                    overlay.style.justifyContent = 'center';
+                    overlay.style.alignItems = 'center';
+                    overlay.innerHTML = `
+                        <div class="spinner"></div>
+                        <p style="font-size: 24px; font-family: Arial, sans-serif; color: black;">Signing in...</p>
+                    `;
+
+                    var style = document.createElement('style');
+                    style.innerHTML = `
+                        .spinner {
+                            border: 8px solid #f3f3f3; /* Light grey */
+                            border-top: 8px solid #3498db; /* Blue */
+                            border-radius: 50%;
+                            width: 50px;
+                            height: 50px;
+                            animation: spin 1s linear infinite;
+                        }
+
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                    document.body.appendChild(overlay);
+                }
+
+                function showErrorInOverlay() {
+                    const overlay = document.getElementById('loadingOverlay');
+                    if (overlay) {
+                        overlay.innerHTML = `
+                            <p style="font-size: 24px; font-family: Arial, sans-serif; color: red;text-align:center">⚠️<br/><br/>Invalid username or password.</p>
+                        `;
+                    }
+                }
+
+                function removeLoadingOverlay() {
+                    var overlay = document.getElementById('loadingOverlay');
+                    if (overlay) {
+                        overlay.remove();
+                    }
+                }
+
+                function checkForErrorAlert() {
+                    const interval = setInterval(() => {
+                        const isErrorAlertPresent = document.querySelector('ha-alert[alert-type="error"]') !== null;
+                        if (isErrorAlertPresent) {
+                            clearInterval(interval); // Stop checking once error is detected
+                            showErrorInOverlay();    // Display error message in the overlay
+                        }
+                    }, 1000); // Check every 1 second
+                }
+
+                function checkInputElement() {
+                    if (found) { return; }
+
+                    var inputElement = document.querySelector('input[name="username"]');
+                    if (inputElement) {
+                        found = true;
+                        console.log("Input element found");
+                        doSignIn();
+                    } else {
+                        console.log("Input element not found");
+                    }
+                }
+
+                function doSignIn() {
+                    var usernameInput = document.querySelector('input[name="username"]');
+                    var passwordInput = document.querySelector('input[name="password"]');
+                    var loginButton = document.querySelector('mwc-button');
+
+                    usernameInput.value = $escapedUsername;
+                    var usernameEvent = new Event('input', { bubbles: true });
+                    usernameInput.dispatchEvent(usernameEvent);
+
+                    passwordInput.value = $escapedPassword;
+                    var passwordEvent = new Event('input', { bubbles: true });
+                    passwordInput.dispatchEvent(passwordEvent);
+
+                    // Add a slight delay before clicking the login button
+                    setTimeout(function() {
+                        var clickEvent = new MouseEvent('click', {
+                            view: window,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        loginButton.dispatchEvent(clickEvent);
+
+                        // Start checking for error alert after login attempt
+                        checkForErrorAlert();
+
+                        // Simulate removing overlay after login attempt (adjust if needed)
+                       //  setTimeout(removeLoadingOverlay, 5000); // remove after 5 seconds
+                    }, 100); // 100 milliseconds delay
+                }
+
+                setInterval(checkInputElement, 1000);
+                createLoadingOverlay();
+            })();
+    """.trimIndent()
+
+        Log.d(TAG, "Executing JavaScript: $jsScript")
+
+        webView?.evaluateJavascript(jsScript) { result ->
+            Log.d(TAG, "JavaScript execution result: $result")
+        }
+    }    
+    
 }
