@@ -224,8 +224,8 @@ class OnboardingActivity : AppCompatActivity(), OnboardingView {
                 "/request_home_assistant_instance",
                 ByteArray(0)
             ).apply {
-                addOnSuccessListener { Log.d(TAG, "requestInstances: request home assistant instances from $node.id: ${node.displayName}") }
-                addOnFailureListener { Log.w(TAG, "requestInstances: failed to request home assistant instances from $node.id: ${node.displayName}") }
+                addOnSuccessListener { Log.d(TAG, "requestInstances: request MySmartHomes instances from $node.id: ${node.displayName}") }
+                addOnFailureListener { Log.w(TAG, "requestInstances: failed to request MySmartHomes instances from $node.id: ${node.displayName}") }
             }
         }
     }

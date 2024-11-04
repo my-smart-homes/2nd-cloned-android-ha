@@ -52,7 +52,7 @@ class ShareActivity : BaseActivity() {
                     Toast.LENGTH_SHORT
                 ).show()
             } catch (e: Exception) {
-                Log.e(TAG, "Issue sharing with Home Assistant", e)
+                Log.e(TAG, "Issue sharing with MySmartHomes", e)
                 Toast.makeText(
                     applicationContext,
                     commonR.string.share_failed,

@@ -30,7 +30,7 @@ class ThreadManagerImpl @Inject constructor(
     companion object {
         private const val TAG = "ThreadManagerImpl"
 
-        // ID is a placeholder used in previous app versions / for older Home Assistant versions
+        // ID is a placeholder used in previous app versions / for older MySmartHomes versions
         private const val BORDER_AGENT_ID = "0000000000000001"
     }
 
