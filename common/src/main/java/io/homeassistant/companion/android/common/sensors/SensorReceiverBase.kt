@@ -131,9 +131,9 @@ abstract class SensorReceiverBase : BroadcastReceiver() {
                                     "android.intent_received",
                                     eventData as Map<String, Any>
                                 )
-                                Log.d(tag, "Event successfully sent to Home Assistant")
+                                Log.d(tag, "Event successfully sent to MySmartHomes")
                             } catch (e: Exception) {
-                                Log.e(tag, "Unable to send event data to Home Assistant", e)
+                                Log.e(tag, "Unable to send event data to MySmartHomes", e)
                             }
                         }
                     }

@@ -721,7 +721,7 @@ class LocationSensorManager : BroadcastReceiver(), SensorManager {
                 logLocationUpdate(location, null, null, trigger, LocationHistoryItemResult.SKIPPED_ACCURACY)
             } else {
                 HighAccuracyLocationService.updateNotificationAddress(latestContext, location)
-                // Send new location to Home Assistant
+                // Send new location to MySmartHomes
                 serverIds.forEach {
                     ioScope.launch { sendLocationUpdate(location, it, trigger) }
                 }
@@ -796,9 +796,9 @@ class LocationSensorManager : BroadcastReceiver(), SensorManager {
                         val enabled = isEnabled(latestContext, zoneLocation, serverId)
                         if (!enabled) return@launch
                         serverManager(latestContext).integrationRepository(serverId).fireEvent(zoneStatusEvent, zoneAttr as Map<String, Any>)
-                        Log.d(TAG, "Event sent to Home Assistant")
+                        Log.d(TAG, "Event sent to MySmartHomes")
                     } catch (e: Exception) {
-                        Log.e(TAG, "Unable to send event to Home Assistant", e)
+                        Log.e(TAG, "Unable to send event to MySmartHomes", e)
                     }
                 }
             }
@@ -980,7 +980,7 @@ class LocationSensorManager : BroadcastReceiver(), SensorManager {
                 zones[serverId] = serverManager(latestContext).integrationRepository(serverId).getZones()
                 zonesLastReceived[serverId] = System.currentTimeMillis()
             } catch (e: Exception) {
-                Log.e(TAG, "Error receiving zones from Home Assistant", e)
+                Log.e(TAG, "Error receiving zones from MySmartHomes", e)
                 if (forceRefresh) zones[serverId] = emptyArray()
             }
         }
