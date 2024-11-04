@@ -48,7 +48,7 @@ class MobileAppIntegrationPresenterImpl @Inject constructor(
                 serverManager.integrationRepository(serverId).registerDevice(deviceRegistration)
                 serverManager.convertTemporaryServer(serverId)
             } catch (e: Exception) {
-                Log.e(TAG, "Unable to register with Home Assistant", e)
+                Log.e(TAG, "Unable to register with MySmartHomes", e)
                 view.showError()
                 return@launch
             }
