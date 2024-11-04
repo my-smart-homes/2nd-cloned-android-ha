@@ -54,7 +54,7 @@ class WearOnboardingListener : WearableListenerService() {
                         )
                     }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to send home assistant instance", e)
+                Log.e(TAG, "Failed to send MySmartHomes instance", e)
             }
         }
     }

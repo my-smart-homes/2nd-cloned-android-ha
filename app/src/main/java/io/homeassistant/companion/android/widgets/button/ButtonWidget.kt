@@ -316,7 +316,7 @@ class ButtonWidget : AppWidgetProvider() {
                         }
                     }
 
-                    Log.d(TAG, "Sending action call to Home Assistant")
+                    Log.d(TAG, "Sending action call to MySmartHomes")
                     serverManager.integrationRepository(widget.serverId).callAction(domain, action, actionDataMap)
                     Log.d(TAG, "Action call sent successfully")
 

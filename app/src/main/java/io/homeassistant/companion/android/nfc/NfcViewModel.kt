@@ -117,7 +117,7 @@ class NfcViewModel @Inject constructor(
                             serverManager.integrationRepository(server.id).scanTag(hashMapOf("tag_id" to it))
                             true
                         } catch (e: Exception) {
-                            Log.e(TAG, "Unable to send tag to Home Assistant.", e)
+                            Log.e(TAG, "Unable to send tag to MySmartHomes.", e)
                             false
                         }
                     }
