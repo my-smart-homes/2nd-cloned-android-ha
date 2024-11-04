@@ -60,7 +60,7 @@ class NotificationDeleteReceiver : BroadcastReceiver() {
                 serverManager.integrationRepository(serverId).fireEvent("mobile_app_notification_cleared", hashData)
                 Log.d(TAG, "Notification cleared event successful!")
             } catch (e: Exception) {
-                Log.e(TAG, "Issue sending event to Home Assistant", e)
+                Log.e(TAG, "Issue sending event to MySmartHomes", e)
             }
         }
     }
