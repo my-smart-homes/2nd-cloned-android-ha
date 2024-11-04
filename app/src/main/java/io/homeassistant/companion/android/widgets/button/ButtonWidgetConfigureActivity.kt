@@ -271,7 +271,7 @@ class ButtonWidgetConfigureActivity : BaseWidgetConfigureActivity() {
                 } catch (e: Exception) {
                     // Custom components can cause actions to not load
                     // Display error text
-                    Log.e(TAG, "Unable to load actions from Home Assistant", e)
+                    Log.e(TAG, "Unable to load actions from MySmartHomes", e)
                     if (server.id == selectedServerId) binding.widgetConfigServiceError.visibility = View.VISIBLE
                 }
             }
