@@ -1678,7 +1678,7 @@ class WebViewActivity : BaseActivity(), io.homeassistant.companion.android.webvi
                     null
                 )
             } else {
-                Log.d(TAG, "User is in the Home Assistant config. Will not show first view of the default dashboard.")
+                Log.d(TAG, "User is in the MySmartHomes config. Will not show first view of the default dashboard.")
             }
         }
     }
