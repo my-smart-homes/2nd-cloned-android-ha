@@ -320,7 +320,7 @@ class HaControlsProviderService : ControlsProviderService() {
                             // All initial states will be in the first message
                             sentInitial = true
                             (entityIds - entities.keys).forEach { missingEntity ->
-                                Log.e(TAG, "Unable to get $missingEntity from Home Assistant, not returned in subscribe_entities.")
+                                Log.e(TAG, "Unable to get $missingEntity from MySmartHomes, not returned in subscribe_entities.")
                                 val entity = getFailedEntity(missingEntity, error404)
                                 entities["ha_failed.$missingEntity"] = entity
                                 toSend["ha_failed.$missingEntity"] = entity
@@ -357,10 +357,10 @@ class HaControlsProviderService : ControlsProviderService() {
                         if (entity != null) {
                             entities[entityId] = entity
                         } else {
-                            Log.e(TAG, "Unable to get $entityId from Home Assistant, null response.")
+                            Log.e(TAG, "Unable to get $entityId from MySmartHomes, null response.")
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Unable to get $entityId from Home Assistant, caught exception.", e)
+                        Log.e(TAG, "Unable to get $entityId from MySmartHomes, caught exception.", e)
                         entities["ha_failed.$entityId"] = getFailedEntity(entityId, e)
                         id = "ha_failed.$entityId"
                     }

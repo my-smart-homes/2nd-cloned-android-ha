@@ -1,7 +1,7 @@
-# :iphone: Home Assistant Companion for Android  [![Build](https://github.com/home-assistant/android/actions/workflows/onPush.yml/badge.svg)](https://github.com/home-assistant/android/actions/workflows/onPush.yml)
+# :iphone: MySmartHomes for Android  [![Build](https://github.com/home-assistant/android/actions/workflows/onPush.yml/badge.svg)](https://github.com/home-assistant/android/actions/workflows/onPush.yml)
 
 ## Documentation
-If you are looking for documentation around the companion applications check out the [Home Assistant Companion Documentation](https://companion.home-assistant.io/).  This will provide you with instructions on using the applications.
+If you are looking for documentation around the companion applications check out the [MySmartHomes Documentation](https://companion.home-assistant.io/).  This will provide you with instructions on using the applications.
 
 ## Setup App Development Environment
 
@@ -83,4 +83,4 @@ The project currently uses [Lokalise](https://lokalise.com/public/145814835dd655
   * Some platforms, such as the Amazon App Store, need to be updated manually
   * F-Droid uses the `version_code.txt` file of the latest release to detect a new production release and build it themselves, this may take some time
  
-[![Home Assistant - A project from the Open Home Foundation](https://www.openhomefoundation.org/badges/home-assistant.png)](https://www.openhomefoundation.org/)
+[![MySmartHomes - A project from the Open Home Foundation](https://www.openhomefoundation.org/badges/home-assistant.png)](https://www.openhomefoundation.org/)
