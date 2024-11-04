@@ -131,7 +131,7 @@ class SensorDetailViewModel @Inject constructor(
     val serversStateExpand = serversDoExpand.collectAsState(false)
 
     private val zones by lazy {
-        Log.d(TAG, "Get zones from Home Assistant for listing zones in preferences...")
+        Log.d(TAG, "Get zones from MySmartHomes for listing zones in preferences...")
         runBlocking {
             val cachedZones = mutableListOf<String>()
             serverManager.defaultServers.map { server ->
@@ -139,12 +139,12 @@ class SensorDetailViewModel @Inject constructor(
                     try {
                         serverManager.integrationRepository(server.id).getZones().map { "${server.id}_${it.entityId}" }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error receiving zones from Home Assistant", e)
+                        Log.e(TAG, "Error receiving zones from MySmartHomes", e)
                         emptyList()
                     }
                 }
             }.awaitAll().forEach { cachedZones.addAll(it) }
-            Log.d(TAG, "Successfully received " + cachedZones.size + " zones (" + cachedZones + ") from Home Assistant")
+            Log.d(TAG, "Successfully received " + cachedZones.size + " zones (" + cachedZones + ") from MySmartHomes")
             cachedZones
         }
     }
