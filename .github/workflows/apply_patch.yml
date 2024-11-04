@@ -23,9 +23,9 @@ jobs:
       # Step 2: Fetch the latest commit hash from upstream repository
       - name: Fetch latest commit hash from upstream
         run: |
-          git remote add upstream https://github.com/home-assistant/core.git
+          git remote add upstream https://github.com/home-assistant/android.git
           git fetch upstream
-          git rev-parse upstream/dev > upstream_commit.txt
+          git rev-parse upstream/master > upstream_commit.txt
 
       # Step 3: Compare the last known commit from upstream stored in .github/env-data/last_commit.txt
       - name: Compare upstream commit with last known commit
@@ -64,8 +64,8 @@ jobs:
       - name: Set up original repository as upstream and hard reset
         if: env.changes_detected == 'true'
         run: |
-          git checkout dev
-          git reset --hard upstream/dev
+          git checkout master
+          git reset --hard upstream/master
 
       # Step 6: Restore the workflow and patch files
       - name: Restore workflow and patch files
@@ -134,7 +134,7 @@ jobs:
           # Set up data for the PR request
           PR_TITLE="Apply wording update patch"
           PR_BODY="Automated PR to apply wording update patch."
-          BASE_BRANCH="dev"
+          BASE_BRANCH="master"
           HEAD_BRANCH="$BRANCH_NAME"
           
           # Create the pull request and capture the PR number
