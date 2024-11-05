@@ -41,26 +41,21 @@ jobs:
           ANDROID_GOOGLE_SERVICE: ${{ secrets.ANDROID_GOOGLE_SERVICE }}
         run: echo "$ANDROID_GOOGLE_SERVICE" > app/google-services.json
 
-      # Step 5: Decode the keystore and save to the app directory
+      # Step 5: Decode the keystore and save it to the app directory
       - name: Set up release keystore
         env:
           RELEASE_KEYSTORE: ${{ secrets.RELEASE_KEYSTORE }}
         run: echo "$RELEASE_KEYSTORE" | base64 --decode > app/release_keystore.keystore
 
-      # Step 6: Source set_keystore_env.sh and Build Release APK in the Same Step
-      - name: Source set_keystore_env.sh and Build APK
+      # Step 7: Build the Release APK
+      - name: Build Release APK
         env:
-          SET_KEYSTORE_ENV_SH: ${{ secrets.SET_KEYSTORE_ENV_SH }}
-        run: |
-          # Create and source the set_keystore_env.sh file
-          echo "$SET_KEYSTORE_ENV_SH" > set_keystore_env.sh
-          chmod +x set_keystore_env.sh
-          ./set_keystore_env.sh  # This now sets the variables in $GITHUB_ENV
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ALIAS_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: ./gradlew :app:assembleRelease
 
-          # Build the APK
-          ./gradlew :app:assembleRelease
-
-      # Step 7: Upload APK to GitHub Release
+      # Step 8: Upload APK to GitHub Release
       - name: Upload APK to GitHub Release
         uses: ncipollo/release-action@v1
         with:
