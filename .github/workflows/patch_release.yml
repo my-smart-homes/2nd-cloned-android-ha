@@ -1,6 +1,7 @@
 name: Patch Release APK
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
@@ -54,7 +55,7 @@ jobs:
           # Create and source the set_keystore_env.sh file
           echo "$SET_KEYSTORE_ENV_SH" > set_keystore_env.sh
           chmod +x set_keystore_env.sh
-          source ./set_keystore_env.sh
+          ./set_keystore_env.sh  # This now sets the variables in $GITHUB_ENV
 
           # Build the APK
           ./gradlew :app:assembleRelease
