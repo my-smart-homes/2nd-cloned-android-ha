@@ -21,7 +21,7 @@ android {
     useLibrary("android.car")
 
     defaultConfig {
-        applicationId = "io.homeassistant.companion.android"
+        applicationId = "com.yildiz.MySmartHomes"
         minSdk = libs.versions.androidSdk.min.get().toInt()
         targetSdk = libs.versions.androidSdk.target.get().toInt()
 
@@ -118,6 +118,8 @@ android {
 
 dependencies {
     implementation(project(":common"))
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.firestore.ktx)
 
     coreLibraryDesugaring(libs.tools.desugar.jdk)
 
