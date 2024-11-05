@@ -58,6 +58,7 @@ jobs:
         run: |
           mkdir -p backup
           cp .github/workflows/apply_patch.yml backup/apply_patch.yml
+          cp .github/workflows/patch_release.yml backup/patch_release.yml
           cp .github/patches/* backup/
 
       # Step 5: Set up original repository as upstream and hard reset
@@ -74,6 +75,7 @@ jobs:
           mkdir -p .github/workflows
           mkdir -p .github/patches
           cp backup/apply_patch.yml .github/workflows/apply_patch.yml
+          cp backup/patch_release.yml .github/workflows/patch_release.yml
           cp backup/*.patch .github/patches/
 
       # Step 7: Clean up the backup directory before applying the patch
