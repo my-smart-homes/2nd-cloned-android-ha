@@ -1,0 +1,52 @@
+From e6c412d2b00272a0639652962b490b797df4568d Mon Sep 17 00:00:00 2001
+From: Naimur <naimurhasanrwd@gmail.com>
+Date: Mon, 4 Nov 2024 23:26:00 +0600
+Subject: [PATCH 3/5] update: drawable of debug
+
+---
+ app/src/debug/res/mipmap-anydpi-v26/ic_assist_launcher.xml | 2 +-
+ app/src/debug/res/mipmap-anydpi-v26/ic_launcher.xml        | 2 +-
+ app/src/debug/res/mipmap-anydpi-v26/ic_launcher_round.xml  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/app/src/debug/res/mipmap-anydpi-v26/ic_assist_launcher.xml b/app/src/debug/res/mipmap-anydpi-v26/ic_assist_launcher.xml
+index 7652e59e..da9a11a8 100644
+--- a/app/src/debug/res/mipmap-anydpi-v26/ic_assist_launcher.xml
++++ b/app/src/debug/res/mipmap-anydpi-v26/ic_assist_launcher.xml
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@android:color/holo_red_dark" />
++    <background android:drawable="@android:color/holo_blue_light" />
+     <foreground android:drawable="@drawable/ic_assist_launcher_foreground" />
+     <monochrome android:drawable="@drawable/ic_assist_launcher_foreground" />
+ </adaptive-icon>
+\ No newline at end of file
+diff --git a/app/src/debug/res/mipmap-anydpi-v26/ic_launcher.xml b/app/src/debug/res/mipmap-anydpi-v26/ic_launcher.xml
+index 5506419e..b0cd9b02 100644
+--- a/app/src/debug/res/mipmap-anydpi-v26/ic_launcher.xml
++++ b/app/src/debug/res/mipmap-anydpi-v26/ic_launcher.xml
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@android:color/holo_red_dark" />
++    <background android:drawable="@android:color/holo_blue_light" />
+     <foreground android:drawable="@drawable/ic_launcher_foreground" />
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
+ </adaptive-icon>
+\ No newline at end of file
+diff --git a/app/src/debug/res/mipmap-anydpi-v26/ic_launcher_round.xml b/app/src/debug/res/mipmap-anydpi-v26/ic_launcher_round.xml
+index cde9c3a7..38d01ffd 100644
+--- a/app/src/debug/res/mipmap-anydpi-v26/ic_launcher_round.xml
++++ b/app/src/debug/res/mipmap-anydpi-v26/ic_launcher_round.xml
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@android:color/holo_red_dark" />
++    <background android:drawable="@android:color/holo_blue_light" />
+     <foreground android:drawable="@drawable/ic_launcher_foreground_round" />
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome_round" />
+ </adaptive-icon>
+-- 
+2.39.3 (Apple Git-146)
+
