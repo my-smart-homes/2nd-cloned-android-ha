@@ -1,0 +1,57 @@
+From 86914159ddbf173b4b7aa2212dcc83649d3fb30e Mon Sep 17 00:00:00 2001
+From: Naimur <naimurhasanrwd@gmail.com>
+Date: Tue, 5 Nov 2024 00:01:15 +0600
+Subject: [PATCH 4/5] add: firebase
+
+---
+ app/build.gradle.kts      | 2 ++
+ gradle/libs.versions.toml | 6 +++++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index e39a027d..ecf4b451 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -118,6 +118,8 @@ android {
+ 
+ dependencies {
+     implementation(project(":common"))
++    implementation(libs.firebase.auth.ktx)
++    implementation(libs.firebase.firestore.ktx)
+ 
+     coreLibraryDesugaring(libs.tools.desugar.jdk)
+ 
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index 2dd9cf01..d362a817 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -3,7 +3,7 @@ activity-compose = "1.9.3"
+ androidBeaconLibrary = "2.20.6"
+ androidPlugin = "8.7.2"
+ androidSdk-compile = "35"
+-androidSdk-min = "21"
++androidSdk-min = "23"
+ androidSdk-target = "34"
+ androidSdk-automotive-min = "29"
+ androidSdk-wear-min = "26"
+@@ -68,6 +68,8 @@ webkit = "1.12.1"
+ wear-remote-interactions = "1.0.0"
+ workRuntimeKtx = "2.10.0"
+ zxing = "4.3.0"
++firebaseAuthKtx = "23.0.0"
++firebaseFirestoreKtx = "25.1.0"
+ 
+ [plugins]
+ android-application = { id = "com.android.application", version.ref = "androidPlugin" }
+@@ -171,6 +173,8 @@ wear-tiles = { module = "androidx.wear.tiles:tiles", version.ref = "wear-tiles"
+ wear-tooling = { module = "androidx.wear:wear-tooling-preview", version.ref = "wear-tooling" }
+ webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
+ zxing = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxing" }
++firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuthKtx" }
++firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestoreKtx" }
+ 
+ [bundles]
+ media3 = ["media3-exoplayer", "media3-exoplayer-hls", "media3-ui"]
+-- 
+2.39.3 (Apple Git-146)
+
