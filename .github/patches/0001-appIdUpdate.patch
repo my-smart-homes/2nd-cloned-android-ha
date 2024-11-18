@@ -1,0 +1,25 @@
+From 0c337dca3ce84a0f7340143e4b8f1569cbb23176 Mon Sep 17 00:00:00 2001
+From: Naimur <naimurhasanrwd@gmail.com>
+Date: Mon, 4 Nov 2024 23:03:07 +0600
+Subject: [PATCH 1/5] appIdUpdate
+
+---
+ app/build.gradle.kts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 85094924..e39a027d 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -21,7 +21,7 @@ android {
+     useLibrary("android.car")
+ 
+     defaultConfig {
+-        applicationId = "io.homeassistant.companion.android"
++        applicationId = "com.yildiz.MySmartHomes"
+         minSdk = libs.versions.androidSdk.min.get().toInt()
+         targetSdk = libs.versions.androidSdk.target.get().toInt()
+ 
+-- 
+2.39.3 (Apple Git-146)
+
