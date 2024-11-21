@@ -1,0 +1,832 @@
+From bcb5fc36206ec0926894dc0f803d5e54d7335300 Mon Sep 17 00:00:00 2001
+From: Naimur <naimurhasanrwd@gmail.com>
+Date: Tue, 5 Nov 2024 01:03:37 +0600
+Subject: [PATCH 5/5] modify: login
+
+---
+ .../android/HomeAssistantApplication.kt       |   2 +
+ .../authentication/AuthenticationFragment.kt  | 144 ++++++++++++++
+ .../onboarding/login/HassioUserSession.kt     |   7 +
+ .../android/onboarding/login/LoginFragment.kt | 177 ++++++++++++++++++
+ .../android/onboarding/login/LoginView.kt     | 159 ++++++++++++++++
+ .../login/ServerTimeFetchService.kt           |  38 ++++
+ .../onboarding/manual/ManualSetupView.kt      |  32 ++++
+ .../onboarding/welcome/WelcomeFragment.kt     |  21 +--
+ app/src/main/res/drawable/login_bg_shape.xml  |  10 +
+ .../main/res/drawable/my_smart_home_icon.xml  |  61 ++++++
+ 10 files changed, 638 insertions(+), 13 deletions(-)
+ create mode 100644 app/src/main/java/io/homeassistant/companion/android/onboarding/login/HassioUserSession.kt
+ create mode 100644 app/src/main/java/io/homeassistant/companion/android/onboarding/login/LoginFragment.kt
+ create mode 100644 app/src/main/java/io/homeassistant/companion/android/onboarding/login/LoginView.kt
+ create mode 100644 app/src/main/java/io/homeassistant/companion/android/onboarding/login/ServerTimeFetchService.kt
+ create mode 100644 app/src/main/res/drawable/login_bg_shape.xml
+ create mode 100644 app/src/main/res/drawable/my_smart_home_icon.xml
+
+diff --git a/app/src/main/java/io/homeassistant/companion/android/HomeAssistantApplication.kt b/app/src/main/java/io/homeassistant/companion/android/HomeAssistantApplication.kt
+index 5c0bc6f6..968a7ddd 100644
+--- a/app/src/main/java/io/homeassistant/companion/android/HomeAssistantApplication.kt
++++ b/app/src/main/java/io/homeassistant/companion/android/HomeAssistantApplication.kt
+@@ -13,6 +13,7 @@ import android.os.Build
+ import android.os.PowerManager
+ import android.telephony.TelephonyManager
+ import androidx.core.content.ContextCompat
++import com.google.firebase.FirebaseApp
+ import dagger.hilt.android.HiltAndroidApp
+ import io.homeassistant.companion.android.common.data.keychain.KeyChainRepository
+ import io.homeassistant.companion.android.common.data.prefs.PrefsRepository
+@@ -51,6 +52,7 @@ open class HomeAssistantApplication : Application() {
+     lateinit var languagesManager: LanguagesManager
+ 
+     override fun onCreate() {
++        FirebaseApp.initializeApp(this)
+         super.onCreate()
+ 
+         registerActivityLifecycleCallbacks(LifecycleHandler)
+diff --git a/app/src/main/java/io/homeassistant/companion/android/onboarding/authentication/AuthenticationFragment.kt b/app/src/main/java/io/homeassistant/companion/android/onboarding/authentication/AuthenticationFragment.kt
+index 0260666c..d283c11d 100644
+--- a/app/src/main/java/io/homeassistant/companion/android/onboarding/authentication/AuthenticationFragment.kt
++++ b/app/src/main/java/io/homeassistant/companion/android/onboarding/authentication/AuthenticationFragment.kt
+@@ -30,6 +30,7 @@ import io.homeassistant.companion.android.common.data.authentication.impl.Authen
+ import io.homeassistant.companion.android.common.data.keychain.KeyChainRepository
+ import io.homeassistant.companion.android.onboarding.OnboardingViewModel
+ import io.homeassistant.companion.android.onboarding.integration.MobileAppIntegrationFragment
++import io.homeassistant.companion.android.onboarding.login.HassioUserSession
+ import io.homeassistant.companion.android.themes.ThemesManager
+ import io.homeassistant.companion.android.util.TLSWebViewClient
+ import io.homeassistant.companion.android.util.compose.HomeAssistantAppTheme
+@@ -38,6 +39,7 @@ import javax.inject.Inject
+ import javax.inject.Named
+ import okhttp3.HttpUrl
+ import okhttp3.HttpUrl.Companion.toHttpUrl
++import org.json.JSONObject
+ 
+ @AndroidEntryPoint
+ class AuthenticationFragment : Fragment() {
+@@ -72,6 +74,7 @@ class AuthenticationFragment : Fragment() {
+                             themesManager.setThemeForWebView(requireContext(), settings)
+                             settings.javaScriptEnabled = true
+                             settings.domStorageEnabled = true
++                            WebView.setWebContentsDebuggingEnabled(true)
+                             settings.userAgentString = settings.userAgentString + " ${HomeAssistantApis.USER_AGENT_STRING}"
+                             webViewClient = object : TLSWebViewClient(keyChainRepository) {
+                                 @Deprecated("Deprecated in Java")
+@@ -79,6 +82,15 @@ class AuthenticationFragment : Fragment() {
+                                     return onRedirect(url)
+                                 }
+ 
++                                override fun onPageFinished(view: WebView?, url: String?) {
++                                    super.onPageFinished(view, url)
++                                    Log.d(TAG, "onPageFinished: $url");
++
++                                    // Inject JavaScript to auto-fill username, password and click login button
++                                    injectAutoLoginScript(view)
++                                }
++
++
+                                 @RequiresApi(Build.VERSION_CODES.M)
+                                 override fun onReceivedError(
+                                     view: WebView?,
+@@ -246,4 +258,136 @@ class AuthenticationFragment : Fragment() {
+             .show()
+         parentFragmentManager.popBackStack()
+     }
++
++    private fun injectAutoLoginScript(webView: WebView?) {
++        val username = HassioUserSession.webviewUsername ?: ""
++        val password = HassioUserSession.webviewPassword ?: ""
++
++        val escapedUsername = JSONObject.quote(username)
++        val escapedPassword = JSONObject.quote(password)
++
++        val jsScript = """
++            (function() {
++                let found = false;
++
++                function createLoadingOverlay() {
++                    var overlay = document.createElement('div');
++                    overlay.id = 'loadingOverlay';
++                    overlay.style.position = 'fixed';
++                    overlay.style.top = '0';
++                    overlay.style.left = '0';
++                    overlay.style.width = '100%';
++                    overlay.style.height = '100%';
++                    overlay.style.backgroundColor = 'white';
++                    overlay.style.zIndex = '9999';
++                    overlay.style.display = 'flex';
++                    overlay.style.flexDirection = 'column';
++                    overlay.style.justifyContent = 'center';
++                    overlay.style.alignItems = 'center';
++                    overlay.innerHTML = `
++                        <div class="spinner"></div>
++                        <p style="font-size: 24px; font-family: Arial, sans-serif; color: black;">Signing in...</p>
++                    `;
++
++                    var style = document.createElement('style');
++                    style.innerHTML = `
++                        .spinner {
++                            border: 8px solid #f3f3f3; /* Light grey */
++                            border-top: 8px solid #3498db; /* Blue */
++                            border-radius: 50%;
++                            width: 50px;
++                            height: 50px;
++                            animation: spin 1s linear infinite;
++                        }
++
++                        @keyframes spin {
++                            0% { transform: rotate(0deg); }
++                            100% { transform: rotate(360deg); }
++                        }
++                    `;
++                    document.head.appendChild(style);
++                    document.body.appendChild(overlay);
++                }
++
++                function showErrorInOverlay() {
++                    const overlay = document.getElementById('loadingOverlay');
++                    if (overlay) {
++                        overlay.innerHTML = `
++                            <p style="font-size: 24px; font-family: Arial, sans-serif; color: red;text-align:center">⚠️<br/><br/>Invalid username or password.</p>
++                        `;
++                    }
++                }
++
++                function removeLoadingOverlay() {
++                    var overlay = document.getElementById('loadingOverlay');
++                    if (overlay) {
++                        overlay.remove();
++                    }
++                }
++
++                function checkForErrorAlert() {
++                    const interval = setInterval(() => {
++                        const isErrorAlertPresent = document.querySelector('ha-alert[alert-type="error"]') !== null;
++                        if (isErrorAlertPresent) {
++                            clearInterval(interval); // Stop checking once error is detected
++                            showErrorInOverlay();    // Display error message in the overlay
++                        }
++                    }, 1000); // Check every 1 second
++                }
++
++                function checkInputElement() {
++                    if (found) { return; }
++
++                    var inputElement = document.querySelector('input[name="username"]');
++                    if (inputElement) {
++                        found = true;
++                        console.log("Input element found");
++                        doSignIn();
++                    } else {
++                        console.log("Input element not found");
++                    }
++                }
++
++                function doSignIn() {
++                    var usernameInput = document.querySelector('input[name="username"]');
++                    var passwordInput = document.querySelector('input[name="password"]');
++                    var loginButton = document.querySelector('mwc-button');
++
++                    usernameInput.value = $escapedUsername;
++                    var usernameEvent = new Event('input', { bubbles: true });
++                    usernameInput.dispatchEvent(usernameEvent);
++
++                    passwordInput.value = $escapedPassword;
++                    var passwordEvent = new Event('input', { bubbles: true });
++                    passwordInput.dispatchEvent(passwordEvent);
++
++                    // Add a slight delay before clicking the login button
++                    setTimeout(function() {
++                        var clickEvent = new MouseEvent('click', {
++                            view: window,
++                            bubbles: true,
++                            cancelable: true
++                        });
++                        loginButton.dispatchEvent(clickEvent);
++
++                        // Start checking for error alert after login attempt
++                        checkForErrorAlert();
++
++                        // Simulate removing overlay after login attempt (adjust if needed)
++                       //  setTimeout(removeLoadingOverlay, 5000); // remove after 5 seconds
++                    }, 100); // 100 milliseconds delay
++                }
++
++                setInterval(checkInputElement, 1000);
++                createLoadingOverlay();
++            })();
++    """.trimIndent()
++
++        Log.d(TAG, "Executing JavaScript: $jsScript")
++
++        webView?.evaluateJavascript(jsScript) { result ->
++            Log.d(TAG, "JavaScript execution result: $result")
++        }
++    }    
++    
+ }
+diff --git a/app/src/main/java/io/homeassistant/companion/android/onboarding/login/HassioUserSession.kt b/app/src/main/java/io/homeassistant/companion/android/onboarding/login/HassioUserSession.kt
+new file mode 100644
+index 00000000..8a739c43
+--- /dev/null
++++ b/app/src/main/java/io/homeassistant/companion/android/onboarding/login/HassioUserSession.kt
+@@ -0,0 +1,7 @@
++package io.homeassistant.companion.android.onboarding.login
++
++object HassioUserSession {
++    var externalUrl: String? = null
++    var webviewUsername: String? = null
++    var webviewPassword: String? = null
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/io/homeassistant/companion/android/onboarding/login/LoginFragment.kt b/app/src/main/java/io/homeassistant/companion/android/onboarding/login/LoginFragment.kt
+new file mode 100644
+index 00000000..bd68b9f2
+--- /dev/null
++++ b/app/src/main/java/io/homeassistant/companion/android/onboarding/login/LoginFragment.kt
+@@ -0,0 +1,177 @@
++package io.homeassistant.companion.android.onboarding.login
++
++import ServerTimeFetchService
++import ServerTimeFetchServiceImpl
++import android.os.Build
++import android.os.Bundle
++import android.util.Log
++import android.view.LayoutInflater
++import android.view.View
++import android.view.ViewGroup
++import android.widget.Toast
++import androidx.compose.ui.platform.ComposeView
++import androidx.fragment.app.Fragment
++import io.homeassistant.companion.android.util.compose.HomeAssistantAppTheme
++import android.util.Patterns
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.setValue
++import com.google.firebase.auth.FirebaseAuth
++import io.homeassistant.companion.android.R
++import io.homeassistant.companion.android.onboarding.discovery.DiscoveryFragment
++import io.homeassistant.companion.android.onboarding.manual.ManualSetupFragment
++import com.google.firebase.firestore.FirebaseFirestore
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.tasks.await
++
++class LoginFragment : Fragment() {
++
++    private var isLoading by mutableStateOf(false)
++
++    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
++
++        return ComposeView(requireContext()).apply {
++            setContent {
++                HomeAssistantAppTheme {
++                    LoginView(
++                        onLoginClick = { username, password -> loginUserWithFirebase(username, password)},
++                        isLoading = isLoading
++                    )
++                }
++            }
++        }
++    }
++
++    private fun loginUserWithFirebase(username: String, password: String) {
++        if (validateCredentials(username, password)) {
++            Log.d("Firestore", "loginUserWithFirebase")
++            isLoading = true
++            val auth = FirebaseAuth.getInstance()
++            val serverTimeService: ServerTimeFetchService = ServerTimeFetchServiceImpl()
++            // Use coroutines to handle Firebase calls
++            CoroutineScope(Dispatchers.IO).launch {
++                try {
++                    auth.signInWithEmailAndPassword(username, password).await()
++                    Log.d("Firestore", "SignInSuccess")
++
++                    val userId = auth.currentUser?.uid
++                    isLoading = false
++
++                    if (userId != null) {
++                        // Fetch the external URL, webview username, and password from Firebase
++                        val webviewCredentials = getWebViewCredentials(userId)
++
++                        if (webviewCredentials != null) {
++                            val currentTime = serverTimeService.fetchServerTime()
++
++                            if (currentTime == null) {
++                                CoroutineScope(Dispatchers.Main).launch {
++                                    Toast.makeText(requireContext(), "Failed to fetch server time", Toast.LENGTH_LONG).show()
++                                }
++                                return@launch
++                            }
++
++                            // Check expiration date
++                            if (webviewCredentials.expirationDate == null || webviewCredentials.expirationDate < currentTime) {
++                                CoroutineScope(Dispatchers.Main).launch {
++                                    Toast.makeText(requireContext(), "You don't have a subscription", Toast.LENGTH_LONG).show()
++                                }
++                                FirebaseAuth.getInstance().signOut()
++                                return@launch
++                            }
++
++                            CoroutineScope(Dispatchers.Main).launch {
++                                Toast.makeText(requireContext(), "Login successful", Toast.LENGTH_SHORT).show()
++                            }
++
++                            Log.d("Firestore", "External URL: ${webviewCredentials.externalUrl}")
++                            Log.d("Firestore", "Webview Username: ${webviewCredentials.username}")
++                            Log.d("Firestore", "Webview Password: ${webviewCredentials.password}")
++
++                            // Save credentials to UserSession
++                            HassioUserSession.externalUrl = webviewCredentials.externalUrl
++                            HassioUserSession.webviewUsername = webviewCredentials.username
++                            HassioUserSession.webviewPassword = webviewCredentials.password
++
++                            loginNavigation() // Proceed with the next step
++                        } else {
++                            Log.d("Firestore", "No webview credentials found for this user.")
++                        }
++                    } else {
++                        Log.d("FirebaseAuth", "User ID is null after login.")
++                    }
++                } catch (e: Exception) {
++                    isLoading = false
++                    CoroutineScope(Dispatchers.Main).launch {
++                        Toast.makeText(requireContext(), "Authentication failed: ${e.message}", Toast.LENGTH_LONG).show()
++                    }
++                }
++            }
++        }
++    }
++
++    private fun loginNavigation() {
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && HassioUserSession.externalUrl == null) {
++            parentFragmentManager
++                .beginTransaction()
++                .replace(R.id.content, DiscoveryFragment::class.java, null)
++                .addToBackStack("Welcome")
++                .commit()
++        } else {
++            parentFragmentManager
++                .beginTransaction()
++                .replace(R.id.content, ManualSetupFragment::class.java, null)
++                .addToBackStack("Welcome")
++                .commit()
++        }
++    }
++
++    private fun validateCredentials(username: String, password: String): Boolean {
++        return when {
++            username.isEmpty() -> {
++                Toast.makeText(requireContext(), "Email cannot be empty", Toast.LENGTH_LONG).show()
++                false
++            }
++            password.isEmpty() -> {
++                Toast.makeText(requireContext(), "Password cannot be empty", Toast.LENGTH_LONG).show()
++                false
++            }
++            !Patterns.EMAIL_ADDRESS.matcher(username).matches() -> {
++                Toast.makeText(requireContext(), "Invalid email format", Toast.LENGTH_LONG).show()
++                false
++            }
++            else -> true
++        }
++    }
++
++    data class WebviewCredentials(
++        val externalUrl: String?,
++        val username: String?,
++        val password: String?,
++        val expirationDate: Long?
++    )
++
++    private suspend fun getWebViewCredentials(userId: String): WebviewCredentials? {
++        val db = FirebaseFirestore.getInstance()
++        return try {
++            val document = db.collection("users").document(userId).get().await()
++            if (document.exists()) {
++                val externalUrl = document.getString("external_url")
++                val webviewUsername = document.getString("webview_username")
++                val webviewPassword = document.getString("webview_password")
++                val expirationDate = document.getTimestamp("expirationDate")?.toDate()?.time
++                WebviewCredentials(externalUrl, webviewUsername, webviewPassword, expirationDate)
++            } else {
++                Log.d("Firestore", "No such document.")
++                null
++            }
++        } catch (e: Exception) {
++            Log.d("Firestore", "Error getting document: ", e)
++            null
++        }
++    }
++
++}
++
+diff --git a/app/src/main/java/io/homeassistant/companion/android/onboarding/login/LoginView.kt b/app/src/main/java/io/homeassistant/companion/android/onboarding/login/LoginView.kt
+new file mode 100644
+index 00000000..34fb1613
+--- /dev/null
++++ b/app/src/main/java/io/homeassistant/companion/android/onboarding/login/LoginView.kt
+@@ -0,0 +1,159 @@
++package io.homeassistant.companion.android.onboarding.login
++
++import android.content.Intent
++import android.net.Uri
++import androidx.compose.foundation.Image
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.gestures.detectTapGestures
++import androidx.compose.foundation.layout.*
++import androidx.compose.foundation.text.KeyboardOptions
++import androidx.compose.ui.text.input.ImeAction
++import androidx.compose.material.Button
++import androidx.compose.material.ButtonDefaults
++import androidx.compose.material.OutlinedTextField
++import androidx.compose.material.Text
++import androidx.compose.runtime.*
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.text.TextStyle
++import androidx.compose.ui.text.input.KeyboardType
++import androidx.compose.ui.text.input.PasswordVisualTransformation
++import androidx.compose.ui.unit.TextUnit
++import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
++import androidx.compose.material.CircularProgressIndicator
++import androidx.compose.material.Icon
++import androidx.compose.material.MaterialTheme
++import androidx.compose.material.Surface
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.input.pointer.pointerInput
++import androidx.compose.ui.layout.ContentScale
++import androidx.compose.ui.platform.LocalContext
++import androidx.compose.ui.platform.LocalFocusManager
++import androidx.compose.ui.res.colorResource
++import androidx.compose.ui.res.painterResource
++import androidx.compose.ui.res.stringResource
++import androidx.compose.ui.tooling.preview.Preview
++import io.homeassistant.companion.android.R
++
++@Preview
++@Composable
++fun LoginView(
++    onLoginClick: (String, String) -> Unit = { _, _ -> },
++    isLoading: Boolean = false
++) {
++
++    var email by remember { mutableStateOf("") }
++    var password by remember { mutableStateOf("") }
++
++    val focusManager = LocalFocusManager.current
++
++    Surface {
++        Column(modifier = Modifier.fillMaxSize()) {
++            Box(contentAlignment = Alignment.TopCenter) {
++                Image(
++                    modifier = Modifier
++                        .fillMaxWidth()
++                        .fillMaxHeight(fraction = 0.44f),
++                    painter = painterResource(id = R.drawable.login_bg_shape),
++                    contentDescription = null,
++                    contentScale = ContentScale.FillBounds,
++                )
++
++                Row(
++                    modifier = Modifier.padding(top = 55.dp),
++                    verticalAlignment = Alignment.CenterVertically,
++                ){
++                    Icon(
++                        tint = Color.White,
++                        modifier = Modifier.size(100.dp),
++                        painter = painterResource(id = R.drawable.my_smart_home_icon), contentDescription = null)
++                }
++
++                Text(
++                    style = MaterialTheme.typography.h5.copy(
++                        color = colorResource(id = io.homeassistant.companion.android.common.R.color.colorPrimary),
++                    ),
++                    modifier = Modifier
++                        .padding(bottom = 10.dp)
++                        .align(alignment = Alignment.BottomCenter),
++                    text = stringResource(id = io.homeassistant.companion.android.common.R.string.login),
++                )
++            }
++
++            Spacer(modifier = Modifier.height(5.dp))  // Add some space below the title
++
++            Column(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .padding(16.dp),
++                verticalArrangement = Arrangement.Center,
++                horizontalAlignment = Alignment.CenterHorizontally
++            ) {
++                OutlinedTextField(
++                    value = email,
++                    onValueChange = { email = it },
++                    label = { Text("Email") },
++                    modifier = Modifier
++                        .fillMaxWidth()
++                        .padding(bottom = 8.dp),
++                    keyboardOptions = KeyboardOptions(
++                        keyboardType = KeyboardType.Email,  // Set keyboard type to Email
++                        imeAction = ImeAction.Next
++                    ),
++                )
++                OutlinedTextField(
++                    value = password,
++                    onValueChange = { password = it },
++                    label = { Text("Password") },
++                    modifier = Modifier
++                        .fillMaxWidth()
++                        .padding(bottom = 16.dp),
++                    keyboardOptions = KeyboardOptions(
++                        keyboardType = KeyboardType.Password,  // Set keyboard type to Password
++                        imeAction = ImeAction.Done
++                    ),
++                    visualTransformation = PasswordVisualTransformation()
++                )
++                if(isLoading){
++                    Spacer(modifier = Modifier.height(16.dp))
++                    CircularProgressIndicator()
++                    Spacer(modifier = Modifier.height(16.dp))
++                }else{
++                    Button(
++                        onClick = { onLoginClick(email, password) },
++                        modifier = Modifier
++                            .fillMaxWidth()
++                            .align(Alignment.CenterHorizontally),
++                        colors = ButtonDefaults.buttonColors(
++                            backgroundColor = colorResource(id = io.homeassistant.companion.android.common.R.color.colorPrimary) // Set your custom background color here
++                        )
++                    ) {
++                        Text(
++                            stringResource(id = io.homeassistant.companion.android.common.R.string.login),
++                            color = Color.White,
++                            modifier = Modifier.padding(vertical = 10.dp) // Adjust the value as needed
++                        )
++                    }
++                }
++                Spacer(modifier = Modifier.height(32.dp))
++            }
++            val context = LocalContext.current
++
++            // Add "Need Help?" text at the bottom
++            Text(
++                text = "Need Help?",
++                modifier = Modifier
++                    .align(Alignment.CenterHorizontally)
++                    .padding(bottom = 16.dp)
++                    .clickable {
++                        // Launch the URL in an external browser
++                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://mysmarthomes.us/"))
++                        context.startActivity(intent)
++                    },
++                color = colorResource(id = io.homeassistant.companion.android.common.R.color.colorPrimary),
++
++                )
++        }
++    }
++}
+diff --git a/app/src/main/java/io/homeassistant/companion/android/onboarding/login/ServerTimeFetchService.kt b/app/src/main/java/io/homeassistant/companion/android/onboarding/login/ServerTimeFetchService.kt
+new file mode 100644
+index 00000000..ec4569c4
+--- /dev/null
++++ b/app/src/main/java/io/homeassistant/companion/android/onboarding/login/ServerTimeFetchService.kt
+@@ -0,0 +1,38 @@
++import okhttp3.OkHttpClient
++import okhttp3.Request
++import okhttp3.Response
++import org.json.JSONObject
++import java.time.OffsetDateTime
++import java.time.format.DateTimeFormatter
++import android.util.Log
++
++interface ServerTimeFetchService {
++    suspend fun fetchServerTime(): Long?
++}
++
++class ServerTimeFetchServiceImpl : ServerTimeFetchService {
++    private val client = OkHttpClient()
++    private val url = "https://getservertime-jrskleaqea-uc.a.run.app"
++
++    override suspend fun fetchServerTime(): Long? {
++        print("fetching server time.")
++        return try {
++            val request = Request.Builder().url(url).build()
++            val response: Response = client.newCall(request).execute()
++
++            if (response.isSuccessful) {
++                val jsonResponse = JSONObject(response.body?.string() ?: "")
++                val timeString = jsonResponse.getString("time")
++                val formatter = DateTimeFormatter.ISO_DATE_TIME
++                val serverTime = OffsetDateTime.parse(timeString, formatter).toInstant().toEpochMilli()
++                serverTime
++            } else {
++                Log.e("ServerTimeFetcher", "Failed with code: ${response.code}")
++                null
++            }
++        } catch (e: Exception) {
++            Log.e("ServerTimeFetcher", "Exception: ${e.message}")
++            null
++        }
++    }
++}
+diff --git a/app/src/main/java/io/homeassistant/companion/android/onboarding/manual/ManualSetupView.kt b/app/src/main/java/io/homeassistant/companion/android/onboarding/manual/ManualSetupView.kt
+index 683b90ee..002a1269 100644
+--- a/app/src/main/java/io/homeassistant/companion/android/onboarding/manual/ManualSetupView.kt
++++ b/app/src/main/java/io/homeassistant/companion/android/onboarding/manual/ManualSetupView.kt
+@@ -1,6 +1,7 @@
+ package io.homeassistant.companion.android.onboarding.manual
+ 
+ import android.content.res.Configuration
++import androidx.compose.foundation.layout.fillMaxSize
+ import androidx.compose.foundation.layout.fillMaxHeight
+ import androidx.compose.foundation.layout.padding
+ import androidx.compose.foundation.rememberScrollState
+@@ -8,12 +9,17 @@ import androidx.compose.foundation.text.KeyboardActions
+ import androidx.compose.foundation.text.KeyboardOptions
+ import androidx.compose.foundation.verticalScroll
+ import androidx.compose.material.Button
++import androidx.compose.material.CircularProgressIndicator
++import androidx.compose.material.MaterialTheme
++import androidx.compose.material.Surface
+ import androidx.compose.material.Text
+ import androidx.compose.material.TextField
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.LaunchedEffect
+ import androidx.compose.runtime.MutableState
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
++import androidx.compose.runtime.saveable.rememberSaveable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+@@ -27,6 +33,8 @@ import com.mikepenz.iconics.typeface.library.community.material.CommunityMateria
+ import io.homeassistant.companion.android.common.R as commonR
+ import io.homeassistant.companion.android.onboarding.OnboardingHeaderView
+ import io.homeassistant.companion.android.onboarding.OnboardingScreen
++import io.homeassistant.companion.android.onboarding.login.HassioUserSession
++import kotlinx.coroutines.launch
+ 
+ @Composable
+ fun ManualSetupView(
+@@ -36,6 +44,21 @@ fun ManualSetupView(
+     connectedClicked: () -> Unit
+ ) {
+     val keyboardController = LocalSoftwareKeyboardController.current
++    val isLoading = rememberSaveable { mutableStateOf(true) }
++
++    LaunchedEffect(Unit) {
++        val externalUrl = HassioUserSession.externalUrl ?: ""
++        if (externalUrl.isNotEmpty() && isLoading.value == true) {
++            manualUrl.value = externalUrl
++            connectedClicked()  // Automatically trigger the connect button
++            launch {
++                kotlinx.coroutines.delay(1000)  // Delay for 1 second
++                isLoading.value = false  // Hide overlay after delay
++            }
++
++        }
++    }
++
+ 
+     OnboardingScreen(Modifier.fillMaxHeight().verticalScroll(rememberScrollState())) {
+         OnboardingHeaderView(
+@@ -75,6 +98,15 @@ fun ManualSetupView(
+         ) {
+             Text(stringResource(commonR.string.connect))
+         }
++
++        if (isLoading.value) {
++            Surface(
++                color = MaterialTheme.colors.background.copy(alpha = 1f),  // Respect theme's background color
++                modifier = Modifier.fillMaxSize()
++            ) {
++
++            }
++        }
+     }
+ }
+ 
+diff --git a/app/src/main/java/io/homeassistant/companion/android/onboarding/welcome/WelcomeFragment.kt b/app/src/main/java/io/homeassistant/companion/android/onboarding/welcome/WelcomeFragment.kt
+index cfa29ce0..80704cbb 100644
+--- a/app/src/main/java/io/homeassistant/companion/android/onboarding/welcome/WelcomeFragment.kt
++++ b/app/src/main/java/io/homeassistant/companion/android/onboarding/welcome/WelcomeFragment.kt
+@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.ComposeView
+ import androidx.fragment.app.Fragment
+ import io.homeassistant.companion.android.R
+ import io.homeassistant.companion.android.onboarding.discovery.DiscoveryFragment
++import io.homeassistant.companion.android.onboarding.login.LoginFragment
+ import io.homeassistant.companion.android.onboarding.manual.ManualSetupFragment
+ import io.homeassistant.companion.android.util.compose.HomeAssistantAppTheme
+ 
+@@ -31,18 +32,12 @@ class WelcomeFragment : Fragment() {
+     }
+ 
+     private fun welcomeNavigation() {
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+-            parentFragmentManager
+-                .beginTransaction()
+-                .replace(R.id.content, DiscoveryFragment::class.java, null)
+-                .addToBackStack("Welcome")
+-                .commit()
+-        } else {
+-            parentFragmentManager
+-                .beginTransaction()
+-                .replace(R.id.content, ManualSetupFragment::class.java, null)
+-                .addToBackStack("Welcome")
+-                .commit()
+-        }
++        // goes to login
++        parentFragmentManager
++            .beginTransaction()
++            .replace(R.id.content, LoginFragment::class.java, null)
++            .addToBackStack("Login")
++            .commit()
++
+     }
+ }
+diff --git a/app/src/main/res/drawable/login_bg_shape.xml b/app/src/main/res/drawable/login_bg_shape.xml
+new file mode 100644
+index 00000000..6b7ca427
+--- /dev/null
++++ b/app/src/main/res/drawable/login_bg_shape.xml
+@@ -0,0 +1,10 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="375dp"
++    android:height="311dp"
++    android:viewportWidth="375"
++    android:viewportHeight="311">
++  <path
++      android:pathData="M375,0H0V311L171.26,192.24C182.23,184.63 196.77,184.63 207.74,192.24L375,308.23V0Z"
++      android:fillColor="#3EBDF1"
++      android:fillType="evenOdd"/>
++</vector>
+diff --git a/app/src/main/res/drawable/my_smart_home_icon.xml b/app/src/main/res/drawable/my_smart_home_icon.xml
+new file mode 100644
+index 00000000..b37b60d2
+--- /dev/null
++++ b/app/src/main/res/drawable/my_smart_home_icon.xml
+@@ -0,0 +1,61 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="89dp"
++    android:height="121dp"
++    android:viewportWidth="89"
++    android:viewportHeight="121">
++  <group>
++    <clip-path
++        android:pathData="M0,0h89v121h-89z"/>
++    <path
++        android:pathData="M85.17,65.95L48.25,39.41L32.61,51.25V38.06H22.4V57.7L12.98,65.81L9.98,62.23L17.77,55.52V33.37H37.25V41.88L48.18,33.6L87.86,62.1L85.17,65.95Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M45.28,24.44C41.73,18.2 35.11,14.33 28.03,14.33C21.34,14.33 15.13,17.72 11.42,23.38L7.57,20.78C12.14,13.79 19.79,9.63 28.03,9.63C36.76,9.63 44.9,14.41 49.28,22.1L45.28,24.45V24.44Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M53.19,20.14C48.25,10.62 38.61,4.7 28.03,4.7C18.18,4.7 9.16,9.77 3.92,18.27L0,15.77C6.09,5.9 16.56,0 28.03,0C40.33,0 51.53,6.87 57.28,17.95L53.19,20.14Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M36.96,28.83C35.12,25.6 31.7,23.59 28.03,23.59C24.35,23.59 21.16,25.43 19.26,28.53L15.33,26.04C18.08,21.55 22.83,18.87 28.03,18.87C33.22,18.87 38.31,21.78 40.98,26.48L36.96,28.83Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M45.28,24.44C41.73,18.2 35.11,14.33 28.03,14.33C21.34,14.33 15.13,17.72 11.42,23.38L7.57,20.78C12.14,13.79 19.79,9.63 28.03,9.63C36.76,9.63 44.9,14.41 49.28,22.1L45.28,24.45V24.44Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M33.17,74.72V58.62H37.24L41.86,68.3L46.43,58.62H50.49V74.72H47.1V64.45L43.2,72.48H40.49L36.57,64.45V74.72H33.18H33.17Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M57.69,74.72V69.2L52.28,58.62H56.13L59.73,66.35H59.09L62.67,58.62H66.47L61.08,69.2V74.72H57.69Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M16.88,98.01C15.75,98.01 14.72,97.81 13.81,97.41C12.9,97.03 12.18,96.45 11.65,95.68C11.12,94.91 10.84,93.97 10.8,92.85H14.42C14.43,93.3 14.54,93.69 14.76,94.03C14.98,94.36 15.26,94.63 15.61,94.82C15.98,95.02 16.4,95.11 16.88,95.11C17.28,95.11 17.63,95.04 17.95,94.92C18.26,94.8 18.5,94.6 18.68,94.34C18.86,94.09 18.95,93.78 18.95,93.39C18.95,93.01 18.84,92.65 18.64,92.37C18.42,92.08 18.14,91.85 17.78,91.64C17.42,91.44 17,91.24 16.52,91.06C16.05,90.88 15.53,90.72 14.99,90.54C13.74,90.13 12.78,89.56 12.1,88.86C11.42,88.16 11.1,87.21 11.1,86.04C11.1,85.06 11.34,84.22 11.82,83.51C12.29,82.81 12.94,82.29 13.77,81.92C14.6,81.54 15.55,81.36 16.6,81.36C17.66,81.36 18.65,81.56 19.47,81.93C20.29,82.3 20.94,82.85 21.43,83.57C21.92,84.29 22.18,85.13 22.22,86.1H18.57C18.56,85.77 18.46,85.46 18.29,85.18C18.11,84.91 17.88,84.68 17.58,84.52C17.28,84.35 16.94,84.27 16.55,84.27C16.2,84.26 15.88,84.31 15.6,84.42C15.31,84.53 15.08,84.71 14.92,84.95C14.76,85.18 14.68,85.48 14.68,85.83C14.68,86.17 14.76,86.46 14.94,86.71C15.11,86.96 15.36,87.18 15.65,87.36C15.97,87.54 16.33,87.7 16.74,87.85C17.16,88 17.61,88.16 18.11,88.31C18.91,88.58 19.64,88.91 20.32,89.29C21,89.66 21.54,90.15 21.95,90.76C22.36,91.37 22.57,92.17 22.57,93.16C22.57,94.03 22.36,94.84 21.91,95.57C21.46,96.3 20.82,96.89 19.98,97.35C19.14,97.8 18.11,98.01 16.86,98.01H16.88Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M25.15,97.73V81.63H29.22L33.85,91.31L38.42,81.63H42.47V97.73H39.08V87.45L35.19,95.49H32.47L28.55,87.45V97.73H25.16H25.15Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M44.44,97.73L50.22,81.63H54.11L59.89,97.73H56.29L52.16,85.53L48.02,97.73H44.47H44.44ZM46.95,94.22L47.86,91.55H56.17L57.05,94.22H46.95Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M61.86,97.73V81.63H68.01C69.3,81.63 70.36,81.85 71.22,82.3C72.07,82.76 72.71,83.36 73.12,84.11C73.54,84.86 73.74,85.69 73.74,86.61C73.74,87.47 73.54,88.28 73.14,89.02C72.75,89.78 72.13,90.39 71.27,90.84C70.43,91.3 69.33,91.53 67.99,91.53H65.25V97.72H61.86V97.73ZM65.25,89.07H67.81C68.65,89.07 69.28,88.86 69.68,88.45C70.08,88.03 70.28,87.47 70.28,86.77C70.28,86.06 70.08,85.53 69.68,85.13C69.28,84.73 68.67,84.52 67.81,84.52H65.25V89.08V89.07ZM70.02,97.73L66.83,90.69H70.48L73.88,97.73H70.02Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M80.03,97.73V84.41H75.44V81.63H88.02V84.41H83.42V97.73H80.03Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M9.88,120.72V104.62H13.27V120.72H9.88ZM12.85,113.89V111.11H20.36V113.89H12.85ZM19.82,120.72V104.62H23.21V120.72H19.82Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M33.64,121C32.08,121 30.72,120.64 29.54,119.94C28.36,119.24 27.44,118.26 26.78,117C26.1,115.75 25.77,114.31 25.77,112.67C25.77,111.03 26.11,109.58 26.78,108.33C27.44,107.07 28.38,106.09 29.54,105.39C30.72,104.69 32.09,104.33 33.64,104.33C35.19,104.33 36.57,104.69 37.76,105.39C38.96,106.09 39.88,107.07 40.53,108.33C41.18,109.58 41.52,111.03 41.52,112.67C41.52,114.31 41.2,115.75 40.53,117C39.87,118.26 38.95,119.24 37.76,119.94C36.57,120.64 35.2,121 33.64,121ZM33.64,117.9C34.56,117.9 35.35,117.68 36,117.25C36.65,116.83 37.17,116.22 37.53,115.45C37.9,114.68 38.08,113.75 38.08,112.68C38.08,111.6 37.9,110.68 37.53,109.91C37.17,109.14 36.67,108.53 36,108.12C35.35,107.69 34.55,107.49 33.64,107.49C32.73,107.49 31.97,107.69 31.31,108.12C30.64,108.55 30.13,109.14 29.76,109.91C29.4,110.68 29.22,111.6 29.22,112.68C29.22,113.75 29.4,114.68 29.76,115.45C30.13,116.22 30.64,116.83 31.31,117.25C31.97,117.68 32.75,117.9 33.64,117.9Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M44.05,120.72V104.62H48.12L52.74,114.31L57.31,104.62H61.37V120.72H57.98V110.45L54.08,118.48H51.37L47.45,110.45V120.72H44.06H44.05Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M64.41,120.72V104.62H75.03V107.4H67.8V111.19H74.34V113.86H67.8V117.93H75.03V120.71H64.41V120.72Z"
++        android:fillColor="#ffffff"/>
++    <path
++        android:pathData="M83.29,121C82.16,121 81.13,120.81 80.22,120.41C79.32,120.02 78.6,119.44 78.07,118.67C77.54,117.9 77.25,116.96 77.21,115.85H80.83C80.85,116.29 80.96,116.69 81.17,117.02C81.39,117.35 81.68,117.63 82.03,117.82C82.39,118.01 82.81,118.11 83.29,118.11C83.7,118.11 84.05,118.04 84.36,117.91C84.67,117.79 84.92,117.6 85.09,117.33C85.27,117.09 85.36,116.77 85.36,116.39C85.36,116 85.26,115.64 85.05,115.36C84.84,115.08 84.55,114.84 84.2,114.64C83.83,114.43 83.41,114.24 82.94,114.06C82.46,113.88 81.95,113.71 81.4,113.53C80.16,113.12 79.19,112.56 78.51,111.85C77.84,111.15 77.51,110.2 77.51,109.03C77.51,108.05 77.75,107.21 78.23,106.51C78.7,105.8 79.36,105.28 80.18,104.91C81.01,104.54 81.96,104.36 83.02,104.36C84.08,104.36 85.05,104.55 85.88,104.92C86.71,105.29 87.36,105.85 87.85,106.56C88.34,107.28 88.59,108.12 88.63,109.1H84.99C84.97,108.77 84.88,108.45 84.7,108.17C84.52,107.9 84.29,107.68 83.99,107.51C83.7,107.35 83.36,107.26 82.96,107.26C82.61,107.25 82.3,107.31 82.01,107.42C81.73,107.53 81.5,107.71 81.34,107.94C81.17,108.17 81.09,108.48 81.09,108.82C81.09,109.17 81.17,109.46 81.35,109.7C81.53,109.95 81.77,110.17 82.07,110.35C82.38,110.53 82.75,110.69 83.15,110.85C83.57,111 84.02,111.15 84.52,111.3C85.32,111.58 86.06,111.91 86.74,112.28C87.41,112.65 87.96,113.15 88.36,113.75C88.78,114.36 88.99,115.16 88.99,116.15C88.99,117.02 88.77,117.83 88.32,118.56C87.87,119.29 87.24,119.88 86.4,120.34C85.55,120.78 84.52,121 83.28,121H83.29Z"
++        android:fillColor="#ffffff"/>
++  </group>
++</vector>
+-- 
+2.39.3 (Apple Git-146)
+
